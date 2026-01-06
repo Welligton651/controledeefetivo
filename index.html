@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Efetivo - Corporate BI</title>
+    
+    <!-- Tailwind CSS (Via CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        corp: {
+                            main: '#0f172a',    
+                            accent: '#2563eb',  
+                            bg: '#f1f5f9',      
+                            surface: '#ffffff', 
+                            text: '#334155',    
+                            muted: '#64748b'    
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'bi': '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+                        'bi-hover': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                    },
+                    animation: {
+                        'fade-in-left': 'fadeInLeft 0.5s ease-out forwards',
+                        'blob': 'blob 10s infinite',
+                    },
+                    keyframes: {
+                        fadeInLeft: {
+                            '0%': { opacity: '0', transform: 'translateX(-20px)' },
+                            '100%': { opacity: '1', transform: 'translateX(0)' },
+                        },
+                        blob: {
+                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                            '100%': { transform: 'translate(0px, 0px) scale(1)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Font Awesome (Link Simplificado para evitar erros de CORS/Integridade) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- SheetJS (Excel Export) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f1f5f9; color: #334155; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #e2e8f0; }
+        ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        .fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Header Mask */
+        .header-mask {
+            background: linear-gradient(90deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 58, 138, 0.85) 100%),
+                        url('https://i.ibb.co/Jw2vSszL/1767716945834.jpg');
+            background-size: cover;
+            background-position: center;
+        }
+
+        /* Nav Items */
+        .nav-item {
+            border-left: 3px solid transparent;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            z-index: 20; 
+        }
+        .nav-item:hover {
+            background-color: rgba(255,255,255,0.05);
+            color: #ffffff;
+            padding-left: 1.75rem; 
+        }
+        .nav-item.active {
+            background-color: rgba(255,255,255,0.1);
+            border-left-color: #3b82f6; 
+            color: #ffffff;
+            font-weight: 600;
+            background: linear-gradient(90deg, rgba(59, 130, 246, 0.15) 0%, transparent 100%);
+            backdrop-filter: blur(5px);
+        }
+        
+        /* Sidebar Background */
+        .sidebar-animated-bg {
+            background: linear-gradient(135deg, #0f172a, #1e1b4b, #172554, #0f172a);
+            background-size: 400% 400%;
+            animation: sidebarGradient 15s ease infinite;
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            opacity: 1;
+            z-index: 0;
+        }
+
+        @keyframes sidebarGradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        /* Staggered Animation */
+        .sidebar-anim-1 { opacity: 0; animation: fadeInLeft 0.5s ease-out 0.1s forwards; }
+        .sidebar-anim-2 { opacity: 0; animation: fadeInLeft 0.5s ease-out 0.2s forwards; }
+        .sidebar-anim-3 { opacity: 0; animation: fadeInLeft 0.5s ease-out 0.3s forwards; }
+        .sidebar-anim-4 { opacity: 0; animation: fadeInLeft 0.5s ease-out 0.4s forwards; }
+        .sidebar-anim-5 { opacity: 0; animation: fadeInLeft 0.5s ease-out 0.5s forwards; }
+        .sidebar-anim-6 { opacity: 0; animation: fadeInLeft 0.5s ease-out 0.6s forwards; }
+
+        @keyframes fadeInLeft {
+            from { opacity: 0; transform: translateX(-15px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* Progress Bar */
+        .progress-bar-fill {
+            transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
+</head>
+<body class="h-screen flex overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside class="w-64 text-slate-300 flex-shrink-0 flex flex-col shadow-xl z-20 relative overflow-hidden bg-slate-900">
+        
+        <div class="sidebar-animated-bg"></div>
+        
+        <!-- Blobs (Pure CSS) -->
+        <div class="absolute top-0 -left-4 w-72 h-72 bg-blue-600 rounded-full mix-blend-multiply filter blur-[64px] opacity-10 animate-blob z-0"></div>
+        <div class="absolute top-0 -right-4 w-72 h-72 bg-indigo-600 rounded-full mix-blend-multiply filter blur-[64px] opacity-10 animate-blob animation-delay-2000 z-0"></div>
+        <div class="absolute -bottom-32 left-20 w-72 h-72 bg-purple-600 rounded-full mix-blend-multiply filter blur-[64px] opacity-10 animate-blob animation-delay-4000 z-0"></div>
+
+        <!-- Logo -->
+        <div class="h-16 flex items-center px-6 border-b border-slate-700/50 z-10 relative bg-slate-900/20 backdrop-blur-sm">
+            <!-- Container do Logo sem fundo branco para aproveitar a inversão -->
+            <div class="h-8 w-auto flex items-center justify-center mr-3">
+                <!-- Filtro 'invert' aplicado para transformar preto em branco -->
+                <img src="https://i.ibb.co/vC4smFdx/Capturar0202-removebg-preview.png" alt="Logo" class="h-full object-contain invert filter brightness-0">
+            </div>
+            <span class="font-bold text-white text-lg tracking-tight drop-shadow-md">Controle Efetivo</span>
+        </div>
+
+        <!-- Nav -->
+        <nav class="flex-1 py-6 space-y-1 z-10 relative">
+            <p class="px-6 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 sidebar-anim-1">Relatórios</p>
+            
+            <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item active w-full flex items-center px-6 py-3 text-sm sidebar-anim-2">
+                <i class="fa-solid fa-gauge-high w-6"></i>
+                <span class="ml-3">Visão Geral</span>
+            </button>
+            
+            <button onclick="switchTab('list')" id="nav-list" class="nav-item w-full flex items-center px-6 py-3 text-sm sidebar-anim-3">
+                <i class="fa-solid fa-table-list w-6"></i>
+                <span class="ml-3">Base de Dados</span>
+            </button>
+            
+            <p class="px-6 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 mt-6 sidebar-anim-4">Dados</p>
+            
+            <button onclick="switchTab('import')" id="nav-import" class="nav-item w-full flex items-center px-6 py-3 text-sm sidebar-anim-5">
+                <i class="fa-solid fa-cloud-arrow-up w-6"></i>
+                <span class="ml-3">Importação</span>
+            </button>
+        </nav>
+
+        <!-- Status -->
+        <div class="p-4 border-t border-slate-700/50 bg-slate-900/30 backdrop-blur-sm z-10 relative sidebar-anim-6">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center text-xs text-emerald-400 font-medium" id="firebase-status">
+                    <span class="relative flex h-2 w-2 mr-2">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75" id="status-ping"></span>
+                      <span class="relative inline-flex rounded-full h-2 w-2 bg-yellow-500" id="status-dot"></span>
+                    </span>
+                    <span id="status-text" class="text-yellow-400">Conectando...</span>
+                </div>
+                <i class="fa-solid fa-server text-slate-500 text-xs"></i>
+            </div>
+            <div class="flex justify-between items-center text-[10px] text-slate-400">
+                <span>v4.3 Hybrid</span>
+                <span class="bg-slate-800/50 px-1.5 py-0.5 rounded text-slate-400 border border-slate-700/50">Corp</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Content -->
+    <main class="flex-1 flex flex-col h-screen overflow-hidden bg-slate-100">
+        
+        <!-- Header -->
+        <header class="header-mask h-32 flex-shrink-0 shadow-md relative z-10">
+            <div class="h-full w-full flex flex-col justify-between p-6">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h1 id="page-title" class="text-2xl font-bold text-white drop-shadow-sm">Dashboard Executivo</h1>
+                        <p class="text-blue-200 text-sm mt-1" id="current-date">Carregando data...</p>
+                    </div>
+
+                    <div class="flex items-center gap-4">
+                        <button onclick="resetData()" class="px-3 py-1.5 text-xs font-medium text-white bg-white/10 border border-white/20 rounded hover:bg-red-500/80 hover:border-red-500 transition backdrop-blur-sm">
+                            <i class="fa-solid fa-trash-can mr-2"></i> Limpar Base
+                        </button>
+                        
+                        <div class="flex items-center gap-3 pl-4 border-l border-white/20">
+                            <div class="text-right hidden md:block">
+                                <p class="text-sm font-semibold text-white">Tamara Araújo</p>
+                                <p class="text-xs text-blue-200">Gestão de Pessoal</p>
+                            </div>
+                            <div class="h-10 w-10 rounded-full border-2 border-white/30 overflow-hidden shadow-lg">
+                                <img src="https://i.ibb.co/4q0BJ0k/tam.jpg" alt="Profile" class="h-full w-full object-cover">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Views -->
+        <div id="content-area" class="flex-1 overflow-hidden p-6 md:p-10 bg-[#f8fafc] relative flex flex-col">
+            
+            <!-- VIEW: DASHBOARD -->
+            <div id="view-dashboard" class="fade-in space-y-6 max-w-7xl mx-auto h-full overflow-y-auto pr-2 pb-10">
+                <!-- KPI Row -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                    <!-- KPI 1: CUSTOM LOGO WITH LILAC FILTER -->
+                    <div class="bg-white p-5 rounded-lg shadow-bi border border-slate-200 flex items-center justify-between hover:shadow-bi-hover transition-shadow cursor-default">
+                        <div>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
+                                <!-- Logo pequeno com filtro lilás suave -->
+                                <img src="https://i.ibb.co/B2gBbYvf/Capturdfddfdfdfdfdr.png" class="w-4 h-4 mr-2 object-contain"
+                                     style="filter: invert(68%) sepia(19%) saturate(1008%) hue-rotate(231deg) brightness(101%) contrast(94%);">
+                                Total Efetivo
+                            </p>
+                            <h3 class="text-3xl font-bold text-slate-800 mt-1" id="stat-total">0</h3>
+                        </div>
+                        <div class="h-12 w-12 rounded bg-purple-50 flex items-center justify-center">
+                            <!-- Logo grande com filtro lilás suave -->
+                            <img src="https://i.ibb.co/B2gBbYvf/Capturdfddfdfdfdfdr.png" class="w-7 h-7 object-contain"
+                                 style="filter: invert(68%) sepia(19%) saturate(1008%) hue-rotate(231deg) brightness(101%) contrast(94%);">
+                        </div>
+                    </div>
+                    <!-- KPI 2: CUSTOM LOGO WITH REDDISH/WHITE FILTER -->
+                    <div class="bg-white p-5 rounded-lg shadow-bi border border-slate-200 flex items-center justify-between hover:shadow-bi-hover transition-shadow cursor-default">
+                        <div>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
+                                <!-- Logo pequeno com filtro avermelhado sutil -->
+                                <img src="https://i.ibb.co/xKPmc9pX/Captursssdsddsdsdsdar-removebg-preview.png" class="w-4 h-4 mr-2 object-contain"
+                                     style="filter: invert(42%) sepia(93%) saturate(1352%) hue-rotate(330deg) brightness(110%) contrast(101%); opacity: 0.8;">
+                                Em Licença
+                            </p>
+                            <h3 class="text-3xl font-bold text-slate-800 mt-1" id="stat-licenca">0</h3>
+                        </div>
+                        <div class="h-12 w-12 rounded bg-red-50 flex items-center justify-center">
+                             <!-- Logo grande com filtro avermelhado sutil -->
+                             <img src="https://i.ibb.co/xKPmc9pX/Captursssdsddsdsdsdar-removebg-preview.png" class="w-7 h-7 object-contain"
+                                  style="filter: invert(42%) sepia(93%) saturate(1352%) hue-rotate(330deg) brightness(110%) contrast(101%);">
+                        </div>
+                    </div>
+                    <!-- KPI 3: UNITS WITH CUSTOM LOGO AND CYAN FILTER -->
+                    <div class="bg-white p-5 rounded-lg shadow-bi border border-slate-200 flex items-center justify-between hover:shadow-bi-hover transition-shadow cursor-default">
+                        <div>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
+                                <!-- Logo pequeno ao lado do título com filtro azul ciano -->
+                                <img src="https://i.ibb.co/Myd9zLk2/Capturarccccc-removebg-preview.png" class="w-4 h-4 mr-2 object-contain" 
+                                     style="filter: invert(44%) sepia(87%) saturate(1476%) hue-rotate(167deg) brightness(95%) contrast(101%);">
+                                Unidades
+                            </p>
+                            <h3 class="text-3xl font-bold text-slate-800 mt-1" id="stat-locais">0</h3>
+                        </div>
+                        <!-- Logo grande no container com fundo cyan e filtro -->
+                        <div class="h-12 w-12 rounded bg-cyan-50 flex items-center justify-center">
+                            <img src="https://i.ibb.co/Myd9zLk2/Capturarccccc-removebg-preview.png" class="w-7 h-7 object-contain"
+                                 style="filter: invert(44%) sepia(87%) saturate(1476%) hue-rotate(167deg) brightness(95%) contrast(101%);">
+                        </div>
+                    </div>
+                    <!-- KPI 4: CUSTOM LOGO WITH ORANGE FILTER -->
+                    <div class="bg-white p-5 rounded-lg shadow-bi border border-slate-200 flex items-center justify-between hover:shadow-bi-hover transition-shadow cursor-default">
+                        <div>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
+                                <!-- Logo pequeno com filtro laranja -->
+                                <img src="https://i.ibb.co/f7rC31x/scsccscscscsc-removebg-preview.png" class="w-4 h-4 mr-2 object-contain"
+                                     style="filter: invert(48%) sepia(79%) saturate(2476%) hue-rotate(86deg) brightness(118%) contrast(119%);">
+                                Cargos
+                            </p>
+                            <h3 class="text-3xl font-bold text-slate-800 mt-1" id="stat-cargos">0</h3>
+                        </div>
+                        <!-- Fundo Laranja Claro -->
+                        <div class="h-12 w-12 rounded bg-orange-50 flex items-center justify-center">
+                             <!-- Logo grande com filtro laranja -->
+                             <img src="https://i.ibb.co/f7rC31x/scsccscscscsc-removebg-preview.png" class="w-7 h-7 object-contain"
+                                  style="filter: invert(48%) sepia(79%) saturate(2476%) hue-rotate(86deg) brightness(118%) contrast(119%);">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts 1 -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-lg shadow-bi border border-slate-200 lg:col-span-1 flex flex-col">
+                        <h4 class="text-sm font-bold text-slate-700 uppercase mb-4 border-b pb-2">Distribuição por Unidade</h4>
+                        <div class="flex-1 flex items-center justify-center relative min-h-[250px]">
+                            <canvas id="chart-pie"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-bi border border-slate-200 lg:col-span-2 flex flex-col">
+                        <h4 class="text-sm font-bold text-slate-700 uppercase mb-4 border-b pb-2">Top 10 Unidades (Volume)</h4>
+                        <div class="flex-1 relative min-h-[250px]">
+                            <canvas id="chart-units"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ranking Top 15 -->
+                <div class="bg-white p-6 rounded-lg shadow-bi border border-slate-200 mt-2">
+                    <div class="flex flex-col sm:flex-row justify-between items-center mb-4 border-b border-slate-100 pb-2 gap-3">
+                        <div class="flex items-center">
+                            <h4 class="text-sm font-bold text-slate-700 uppercase mr-3">Ranking Top 15 Unidades</h4>
+                            <span class="text-xs text-slate-400 font-light" id="top15-subtitle">Maior Efetivo Total</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase">Filtrar Ranking:</label>
+                            <select id="chart-top15-filter" class="text-xs border border-slate-300 rounded p-1.5 bg-slate-50 focus:border-blue-500 outline-none text-slate-600 font-semibold cursor-pointer hover:bg-white transition-colors">
+                                <option value="TOTAL">Efetivo Total</option>
+                                <option value="EFETIVO">Apenas Efetivos</option>
+                                <option value="COMISSIONADO">Apenas Comissionados</option>
+                                <option value="CONTRATADO">Apenas Contratos</option>
+                                <option value="ESTAGI">Apenas Estagiários</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="relative h-96">
+                        <canvas id="chart-top15"></canvas>
+                    </div>
+                </div>
+
+                <!-- Charts 3 -->
+                <div class="bg-white p-6 rounded-lg shadow-bi border border-slate-200">
+                    <h4 class="text-sm font-bold text-slate-700 uppercase mb-4 border-b pb-2">Ocupações em Destaque (Top 10)</h4>
+                    <div class="relative h-80">
+                        <canvas id="chart-roles"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: LISTA -->
+            <div id="view-list" class="hidden fade-in h-full flex flex-col">
+                <div class="bg-white rounded-lg shadow-bi border border-slate-200 mb-4 p-4">
+                    <!-- Dynamic Stats Row -->
+                    <div id="dynamic-stats-container" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-5 pb-5 border-b border-slate-100">
+                        <!-- JS injected -->
+                    </div>
+
+                    <!-- Filter Tools & Export -->
+                    <div class="flex flex-col xl:flex-row gap-4 items-end">
+                        <div class="w-full xl:w-1/4 flex flex-col gap-4">
+                            <!-- Search -->
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 uppercase mb-1 block">Pesquisar</label>
+                                <div class="relative">
+                                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400"></i>
+                                    <input type="text" id="search-input" placeholder="Nome, Matrícula..." 
+                                        class="w-full pl-10 pr-3 py-2 bg-slate-50 border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition">
+                                </div>
+                            </div>
+                            
+                            <!-- Export Buttons -->
+                            <div class="flex gap-2">
+                                <button onclick="exportToPrint()" class="flex-1 bg-slate-700 text-white px-2 py-2 rounded shadow-sm hover:bg-slate-600 transition flex items-center justify-center gap-2 text-xs font-semibold">
+                                    <i class="fa-solid fa-print"></i> PDF/Print
+                                </button>
+                                <button onclick="exportToExcel()" class="flex-1 bg-emerald-600 text-white px-2 py-2 rounded shadow-sm hover:bg-emerald-500 transition flex items-center justify-center gap-2 text-xs font-semibold">
+                                    <i class="fa-solid fa-file-excel"></i> Excel
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="w-full xl:w-3/4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="flex flex-col">
+                                <label class="text-xs font-bold text-slate-500 uppercase mb-1">Unidade / Lotação</label>
+                                <select id="filter-lotacao" class="w-full p-2 bg-slate-50 border border-slate-300 rounded text-sm focus:border-blue-500 outline-none cursor-pointer">
+                                    <option value="">Todas as Unidades</option>
+                                </select>
+                            </div>
+                            <div class="flex flex-col">
+                                <label class="text-xs font-bold text-slate-500 uppercase mb-1">Cargo / Função</label>
+                                <select id="filter-cargo" class="w-full p-2 bg-slate-50 border border-slate-300 rounded text-sm focus:border-blue-500 outline-none cursor-pointer">
+                                    <option value="">Todos os Cargos</option>
+                                </select>
+                            </div>
+                            <div class="flex flex-col">
+                                <label class="text-xs font-bold text-slate-500 uppercase mb-1">Vínculo</label>
+                                <select id="filter-vinculo" class="w-full p-2 bg-slate-50 border border-slate-300 rounded text-sm focus:border-blue-500 outline-none cursor-pointer">
+                                    <option value="">Todos os Vínculos</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white border border-slate-200 rounded-lg shadow-bi flex-1 overflow-hidden flex flex-col">
+                    <div class="overflow-auto flex-1">
+                        <table class="w-full text-left border-collapse bi-table">
+                            <thead class="sticky top-0 z-10 shadow-sm border-b border-slate-200">
+                                <tr>
+                                    <th class="p-4 bg-slate-50">Nome</th>
+                                    <th class="p-4 bg-slate-50">Lotação</th>
+                                    <th class="p-4 bg-slate-50">Cargo / Função</th>
+                                    <th class="p-4 bg-slate-50">Vínculo</th>
+                                    <th class="p-4 bg-slate-50">Turno</th>
+                                    <th class="p-4 bg-slate-50">Status</th>
+                                    <th class="p-4 bg-slate-50">Obs</th>
+                                    <th class="p-4 bg-slate-50 w-24">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body" class="divide-y divide-slate-100 text-sm"></tbody>
+                        </table>
+                        <div id="empty-state" class="hidden flex flex-col items-center justify-center h-full text-slate-400 py-10">
+                            <i class="fa-regular fa-folder-open text-4xl mb-2"></i>
+                            <p>Nenhum dado encontrado</p>
+                        </div>
+                    </div>
+                    <div class="bg-slate-50 p-2 border-t border-slate-200 text-xs text-center text-slate-500">
+                        <span id="showing-count">Mostrando 0</span> &bull; Base Total: <span id="db-count-badge" class="font-bold">0</span> registros
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: IMPORTAR -->
+            <div id="view-import" class="hidden fade-in h-full flex items-center justify-center overflow-y-auto">
+                <div class="bg-white rounded-lg shadow-lg border border-slate-200 max-w-3xl w-full overflow-hidden my-auto">
+                    <div class="p-6 border-b border-slate-100 bg-slate-50">
+                        <h2 class="text-xl font-bold text-slate-800">Central de Importação</h2>
+                        <p class="text-sm text-slate-500">Adicione dados de arquivos CSV ou TXT (Tabulado).</p>
+                    </div>
+                    <div class="p-8">
+                        <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+                            <div class="flex">
+                                <div class="flex-shrink-0"><i class="fa-solid fa-circle-info text-blue-500"></i></div>
+                                <div class="ml-3">
+                                    <p class="text-sm text-blue-700 font-bold">Modo Cumulativo</p>
+                                    <p class="text-sm text-blue-600">Os dados importados serão adicionados à base existente.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <label class="flex flex-col items-center justify-center w-full h-48 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 hover:border-blue-400 transition-colors relative">
+                            <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                <i class="fa-solid fa-cloud-arrow-up text-4xl text-slate-400 mb-3"></i>
+                                <p class="mb-2 text-sm text-slate-500"><span class="font-semibold">Clique para enviar</span> ou arraste o arquivo</p>
+                                <p class="text-xs text-slate-400">TXT, CSV</p>
+                            </div>
+                            <input id="file-upload" type="file" class="hidden" accept=".csv, .txt" />
+                        </label>
+                        <div class="mt-6">
+                            <h4 class="text-xs font-bold text-slate-500 uppercase mb-2">Estrutura Esperada</h4>
+                            <div class="bg-slate-900 text-emerald-400 font-mono text-xs p-3 rounded overflow-x-auto">
+                                LOTAÇÃO; NOME; [Ignorado]; CARGO; FUNÇÃO; VÍNCULO; TURNO; LICENÇA; OBSERVAÇÃO
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Editar -->
+    <div id="edit-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-lg mx-4 transform scale-95 transition-transform duration-300" id="edit-modal-panel">
+            <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center rounded-t-lg">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center">
+                    <i class="fa-solid fa-user-pen mr-2 text-blue-600"></i> Editar Servidor
+                </h3>
+                <button type="button" onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-6 space-y-4">
+                <input type="hidden" id="edit-id">
+                <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nome Completo</label><input type="text" id="edit-nome" class="w-full p-2 border border-slate-300 rounded text-sm focus:border-blue-500 outline-none"></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Lotação</label><input type="text" id="edit-lotacao" class="w-full p-2 border border-slate-300 rounded text-sm focus:border-blue-500 outline-none"></div>
+                    <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Turno</label><input type="text" id="edit-turno" class="w-full p-2 border border-slate-300 rounded text-sm focus:border-blue-500 outline-none"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cargo</label><input type="text" id="edit-cargo" class="w-full p-2 border border-slate-300 rounded text-sm focus:border-blue-500 outline-none"></div>
+                    <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Função</label><input type="text" id="edit-funcao" class="w-full p-2 border border-slate-300 rounded text-sm focus:border-blue-500 outline-none"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Vínculo</label><input type="text" id="edit-vinculo" class="w-full p-2 border border-slate-300 rounded text-sm focus:border-blue-500 outline-none"></div>
+                    <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Licença</label><input type="text" id="edit-licenca" class="w-full p-2 border border-slate-300 rounded text-sm focus:border-blue-500 outline-none"></div>
+                </div>
+                <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Observação</label><textarea id="edit-observacao" rows="2" class="w-full p-2 border border-slate-300 rounded text-sm focus:border-blue-500 outline-none resize-none"></textarea></div>
+            </div>
+            <div class="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end gap-3 rounded-b-lg">
+                <button type="button" onclick="closeEditModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 rounded">Cancelar</button>
+                <button type="button" onclick="saveEdit()" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded shadow-sm flex items-center"><i class="fa-solid fa-floppy-disk mr-2"></i> Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-6 right-6 bg-slate-800 text-white px-6 py-4 rounded shadow-2xl transform translate-y-32 transition-transform duration-300 z-50 flex items-center border-l-4 border-blue-500">
+        <i id="toast-icon" class="fa-solid fa-check mr-3 text-blue-400"></i>
+        <div>
+            <h4 id="toast-title" class="font-bold text-sm">Notificação</h4>
+            <p id="toast-message" class="text-xs text-slate-300">...</p>
+        </div>
+    </div>
+
+    <!-- MAIN SCRIPT MODULE (Firebase + Logic) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // Hybrid System Variables
+        let useFirebase = false;
+        let db = null;
+        let auth = null;
+        const COLLECTION_NAME = 'servidores';
+
+        // User Provided Config
+        const firebaseConfig = {
+          apiKey: "AIzaSyByll4JEy9rOjgkOWT4DCsKdJjmNVUosVI",
+          authDomain: "controle-de-estoque-65575.firebaseapp.com",
+          projectId: "controle-de-estoque-65575",
+          storageBucket: "controle-de-estoque-65575.firebasestorage.app",
+          messagingSenderId: "1012381885255",
+          appId: "1:1012381885255:web:61ec7900ba6c94370ee262",
+          measurementId: "G-ZY0FJG1Q34"
+        };
+
+        // IndexedDB Fallback Setup
+        const IDB_NAME = 'CorpViewDB';
+        const IDB_VERSION = 1;
+        const IDB_STORE = 'personnel';
+
+        function openIDB() {
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+                req.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(IDB_STORE)) {
+                        db.createObjectStore(IDB_STORE, { keyPath: 'id', autoIncrement: true });
+                    }
+                };
+                req.onsuccess = (e) => resolve(e.target.result);
+                req.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        // Global State
+        let personnelData = [];
+        let currentFilteredData = [];
+        let charts = {};
+
+        // Expose functions to window (needed for module type)
+        window.switchTab = switchTab;
+        window.resetData = resetData;
+        window.exportToExcel = exportToExcel;
+        window.exportToPrint = exportToPrint;
+        window.openEditModal = openEditModal;
+        window.closeEditModal = closeEditModal;
+        window.saveEdit = saveEdit;
+        window.confirmDelete = confirmDelete;
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            initSystem();
+            setupEventListeners();
+            document.getElementById('current-date').innerText = new Date().toLocaleDateString('pt-PT', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            
+            // Safe Chart Defaults
+            if(typeof Chart !== 'undefined') {
+                Chart.defaults.font.family = "'Segoe UI', sans-serif";
+                Chart.defaults.color = '#64748b';
+                Chart.defaults.borderColor = '#e2e8f0';
+            }
+        });
+
+        async function initSystem() {
+            const statusText = document.getElementById('status-text');
+            const statusDot = document.getElementById('status-dot');
+            const statusPing = document.getElementById('status-ping');
+
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                
+                await signInAnonymously(auth);
+                useFirebase = true;
+                console.log("System: Firebase Connected");
+                
+                if(statusText) { statusText.innerText = "Firebase Conectado"; statusText.className = "text-emerald-400"; }
+                if(statusDot) { statusDot.className = "relative inline-flex rounded-full h-2 w-2 bg-emerald-500"; }
+                if(statusPing) { statusPing.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"; }
+
+            } catch (error) {
+                console.warn("System: Firebase failed, switching to IndexedDB.", error);
+                useFirebase = false;
+                showToast("Modo Offline (Local) Ativado", "info");
+                
+                if(statusText) { statusText.innerText = "Modo Local (Offline)"; statusText.className = "text-amber-400"; }
+                if(statusDot) { statusDot.className = "relative inline-flex rounded-full h-2 w-2 bg-amber-500"; }
+                if(statusPing) { statusPing.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"; }
+            }
+            
+            await loadData();
+        }
+
+        async function loadData() {
+            personnelData = [];
+            if (useFirebase) {
+                try {
+                    const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
+                    querySnapshot.forEach((doc) => {
+                        personnelData.push({ id: doc.id, ...doc.data() });
+                    });
+                } catch (e) {
+                    console.error("Firebase read error", e);
+                    useFirebase = false; // Fallback mid-flight if read fails
+                    return loadData();
+                }
+            } else {
+                // IndexedDB Load
+                try {
+                    const idb = await openIDB();
+                    personnelData = await new Promise((resolve, reject) => {
+                        const tx = idb.transaction(IDB_STORE, 'readonly');
+                        const store = tx.objectStore(IDB_STORE);
+                        const req = store.getAll();
+                        req.onsuccess = () => resolve(req.result);
+                        req.onerror = () => reject(req.error);
+                    });
+                } catch (e) { console.error("IDB Error", e); }
+            }
+            
+            currentFilteredData = personnelData;
+            populateFilters();
+            renderTable(personnelData);
+            updateDashboard();
+        }
+
+        async function resetData() {
+            if (!confirm("ATENÇÃO: Isso apagará TODOS os dados. Continuar?")) return;
+            
+            if (useFirebase) {
+                const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
+                const batch = writeBatch(db);
+                querySnapshot.forEach((doc) => batch.delete(doc.ref));
+                await batch.commit();
+            } else {
+                const idb = await openIDB();
+                const tx = idb.transaction(IDB_STORE, 'readwrite');
+                tx.objectStore(IDB_STORE).clear();
+            }
+            await loadData();
+            showToast("Base de dados limpa.", "info");
+        }
+
+        async function saveEdit() {
+            const id = document.getElementById('edit-id').value; // Firestore ID is string
+            const updatedDoc = {
+                nome: document.getElementById('edit-nome').value,
+                lotacao: document.getElementById('edit-lotacao').value,
+                cargo: document.getElementById('edit-cargo').value,
+                funcao: document.getElementById('edit-funcao').value,
+                vinculo: document.getElementById('edit-vinculo').value,
+                turno: document.getElementById('edit-turno').value,
+                licenca: document.getElementById('edit-licenca').value,
+                observacao: document.getElementById('edit-observacao').value
+            };
+
+            try {
+                if (useFirebase) {
+                    const docRef = doc(db, COLLECTION_NAME, String(id));
+                    await updateDoc(docRef, updatedDoc);
+                } else {
+                    const idb = await openIDB();
+                    const tx = idb.transaction(IDB_STORE, 'readwrite');
+                    const numericId = parseInt(id); 
+                    updatedDoc.id = isNaN(numericId) ? id : numericId;
+                    tx.objectStore(IDB_STORE).put(updatedDoc);
+                }
+                
+                // Optimistic UI Update
+                const index = personnelData.findIndex(p => p.id == id);
+                if (index !== -1) personnelData[index] = { id, ...updatedDoc };
+                
+                closeEditModal();
+                applyFilters();
+                updateDashboard();
+                showToast("Salvo com sucesso.", "success");
+            } catch (e) {
+                console.error(e);
+                showToast("Erro ao salvar.", "error");
+            }
+        }
+
+        async function confirmDelete(id) {
+            if (!confirm("Excluir este registro permanentemente?")) return;
+            
+            try {
+                if (useFirebase) {
+                    await deleteDoc(doc(db, COLLECTION_NAME, String(id)));
+                } else {
+                    const idb = await openIDB();
+                    const tx = idb.transaction(IDB_STORE, 'readwrite');
+                    tx.objectStore(IDB_STORE).delete(parseInt(id)); // IDB ids are usually ints
+                }
+                
+                personnelData = personnelData.filter(p => p.id != id);
+                applyFilters();
+                updateDashboard();
+                showToast("Registro excluído.", "info");
+            } catch(e) {
+                console.error(e);
+                showToast("Erro ao excluir.", "error");
+            }
+        }
+
+        // --- File Upload Logic with Batch Write ---
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (evt) => {
+                try {
+                    const newData = parseCSV(evt.target.result);
+                    if (newData.length === 0) {
+                        showToast("Arquivo vazio ou inválido.", 'error');
+                        return;
+                    }
+                    
+                    showToast(`Salvando ${newData.length} registros...`, 'info');
+                    
+                    if (useFirebase) {
+                        const batch = writeBatch(db);
+                        let counter = 0;
+                        for(const item of newData) {
+                            const newRef = doc(collection(db, COLLECTION_NAME));
+                            batch.set(newRef, item);
+                            counter++;
+                            if (counter >= 450) { // Limit batch size
+                                await batch.commit();
+                                counter = 0;
+                            }
+                        }
+                        if(counter > 0) await batch.commit();
+                    } else {
+                        const idb = await openIDB();
+                        const tx = idb.transaction(IDB_STORE, 'readwrite');
+                        const store = tx.objectStore(IDB_STORE);
+                        newData.forEach(item => store.add(item));
+                    }
+                    
+                    await loadData();
+                    showToast("Importação concluída.", 'success');
+                    switchTab('dashboard');
+                } catch (err) {
+                    console.error(err);
+                    showToast("Erro no processamento.", 'error');
+                }
+            };
+            reader.readAsText(file, 'UTF-8');
+            e.target.value = '';
+        }
+
+        // --- Non-Firebase Logic (UI, Parsing, Charts) ---
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            const btn = document.getElementById(`nav-${tabId}`);
+            if (btn) btn.classList.add('active');
+
+            ['dashboard', 'list', 'import'].forEach(v => {
+                const el = document.getElementById(`view-${v}`);
+                if(el) el.classList.add('hidden');
+            });
+            const view = document.getElementById(`view-${tabId}`);
+            if(view) view.classList.remove('hidden');
+
+            if (tabId === 'dashboard') setTimeout(renderCharts, 100);
+            if (tabId === 'list') applyFilters();
+        }
+
+        function openEditModal(id) {
+            // ID might be string in Firestore
+            const record = personnelData.find(p => p.id == id); 
+            if (!record) return;
+            document.getElementById('edit-id').value = record.id;
+            document.getElementById('edit-nome').value = record.nome || '';
+            document.getElementById('edit-lotacao').value = record.lotacao || '';
+            document.getElementById('edit-cargo').value = record.cargo || '';
+            document.getElementById('edit-funcao').value = record.funcao || '';
+            document.getElementById('edit-vinculo').value = record.vinculo || '';
+            document.getElementById('edit-turno').value = record.turno || '';
+            document.getElementById('edit-licenca').value = record.licenca || '';
+            document.getElementById('edit-observacao').value = record.observacao || '';
+
+            const modal = document.getElementById('edit-modal');
+            const panel = document.getElementById('edit-modal-panel');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                panel.classList.remove('scale-95');
+                panel.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeEditModal() {
+            const modal = document.getElementById('edit-modal');
+            const panel = document.getElementById('edit-modal-panel');
+            modal.classList.add('opacity-0');
+            panel.classList.remove('scale-100');
+            panel.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function categorizeUnit(raw) {
+            if (!raw) return "NÃO INFORMADO";
+            let clean = raw.replace(/['"]/g, '').trim();
+            const upper = clean.toUpperCase();
+            if (upper.includes("ILPI")) return "ILPI";
+            if (upper.includes("MSE") && upper.includes("NÚCLEO")) return "NÚCLEO MSE";
+            const externas = ['SUMUS', 'SEMAD', 'SECULT', 'SEMGOV', 'SEMGOP', 'SEMED', 'SEMUS', 'SMTT', 'BLITZ', 'IPAM'];
+            if (externas.some(ext => upper.includes(ext))) return "SECRETARIAS EXTERNAS";
+            const sedeTerms = ['GABINETE', 'ASTEC', 'SEOF', 'CONTRATOS', 'SUPERINTEND', 'COORD.', 'COORDENAÇÃO', 'RECURSOS HUMANOS', 'RH', 'ADMINISTRAÇÃO', 'PATRIMONIO', 'SUPORTE', 'LOGÍSTICA', 'PROTOCOLO', 'ARQUIVO', 'ALMOXARIFADO', 'ASCOM', 'SAI', 'SGSUAS', 'SGBSTR', 'SPSB', 'SPSE', 'S.A', 'VIGILÂNCIA', 'GESTÃO DO TRABALHO', 'ASSEJUR', 'CMDI', 'CMAS', 'CMDCA', 'BENEFICIOS', 'CAD ÚNICO', 'CENTRAL', 'ABORDAGEM SOCIAL', 'PCDIF', 'SCFV', 'PAEFI', 'AEPETI', 'INFORMÁTICA'];
+            if (sedeTerms.some(t => upper.includes(t))) return "SEDE SEMCAS";
+            return clean;
+        }
+
+        function parseCSV(text) {
+            const lines = text.split(/\r\n|\n/);
+            const result = [];
+            let separator = ';';
+            if (lines[0] && lines[0].includes('\t')) separator = '\t';
+            
+            for (let line of lines) {
+                line = line.trim();
+                if (!line || line.toUpperCase().includes('LOTAÇÃO')) continue;
+                let cols = line.split(separator).map(c => c.trim());
+                if (/^(n[\s\.]*\d+|\d+)$/i.test(cols[0])) cols.shift();
+                if (cols.length < 3) continue;
+
+                const rawLotacao = cols[0] || '';
+                const finalLotacao = categorizeUnit(rawLotacao);
+                let obj = {
+                    lotacao: finalLotacao,
+                    nome: cols[1] || '',
+                    cargo: cols[3] || '',
+                    funcao: cols[4] || '',
+                    vinculo: cols[5] || '',
+                    turno: cols[6] || '',
+                    licenca: cols[7] || '',
+                    observacao: (cols[9] || '')
+                };
+                if (obj.nome) result.push(obj);
+            }
+            return result;
+        }
+
+        function setupEventListeners() {
+            const up = document.getElementById('file-upload');
+            if(up) up.addEventListener('change', handleFileUpload);
+            ['search-input', 'filter-lotacao', 'filter-cargo', 'filter-vinculo'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.addEventListener(el.tagName==='INPUT'?'input':'change', applyFilters);
+            });
+            const top15 = document.getElementById('chart-top15-filter');
+            if(top15) top15.addEventListener('change', (e) => renderTop15Chart(e.target.value));
+        }
+
+        function populateFilters() {
+            const fill = (id, key, def) => {
+                const sel = document.getElementById(id);
+                if(!sel) return;
+                const curr = sel.value;
+                const opts = [...new Set(personnelData.map(d => d[key]).filter(v => v))].sort();
+                sel.innerHTML = `<option value="">${def}</option>` + opts.map(o => `<option value="${o}">${o}</option>`).join('');
+                if (opts.includes(curr)) sel.value = curr;
+            };
+            fill('filter-lotacao', 'lotacao', 'Todas as Unidades');
+            fill('filter-cargo', 'cargo', 'Todos os Cargos');
+            fill('filter-vinculo', 'vinculo', 'Todos os Vínculos');
+        }
+
+        function applyFilters() {
+            const term = document.getElementById('search-input').value.toLowerCase();
+            const fLot = document.getElementById('filter-lotacao').value;
+            const fCar = document.getElementById('filter-cargo').value;
+            const fVin = document.getElementById('filter-vinculo').value;
+            const filtered = personnelData.filter(p => {
+                const txt = !term || (p.nome && p.nome.toLowerCase().includes(term)) || (p.lotacao && p.lotacao.toLowerCase().includes(term));
+                return txt && (!fLot || p.lotacao === fLot) && (!fCar || p.cargo === fCar) && (!fVin || p.vinculo === fVin);
+            });
+            renderTable(filtered);
+        }
+
+        function getVinculoColor(v) {
+            if (!v) return 'bg-gray-100 text-gray-600 border-gray-200';
+            v = v.toUpperCase();
+            if (v.includes('COMISSIONADO')) return 'bg-orange-50 text-orange-700 border-orange-200';
+            if (v.includes('EFETIVO')) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+            if (v.includes('CONTRATADO') || v.includes('CONTRATO')) return 'bg-blue-50 text-blue-700 border-blue-200';
+            if (v.includes('ESTAGI')) return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+            if (v.includes('TEMPOR')) return 'bg-rose-50 text-rose-700 border-rose-200';
+            return 'bg-slate-100 text-slate-700 border-slate-200';
+        }
+
+        function updateDynamicStats(data) {
+            const container = document.getElementById('dynamic-stats-container');
+            if(!container) return;
+            const totalDB = personnelData.length || 1;
+            const currentCount = data.length;
+            const percentage = ((currentCount / totalDB) * 100).toFixed(1);
+            const label = document.getElementById('filter-lotacao').value || "Visão Geral";
+            
+            const vCounts = {};
+            data.forEach(p => { const v = p.vinculo || 'NÃO INFORMADO'; vCounts[v] = (vCounts[v] || 0) + 1; });
+
+            let html = `
+                <div class="col-span-2 md:col-span-4 lg:col-span-6 bg-white p-4 rounded shadow-sm mb-2 border-l-4 border-blue-500 stat-card-enter flex flex-col justify-center">
+                    <div class="flex justify-between items-end mb-2">
+                        <div><span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Filtro Ativo</span><h3 class="text-sm font-bold text-slate-700 truncate" style="max-width: 300px;">${label}</h3></div>
+                        <div class="text-right"><span class="text-xl font-bold text-blue-600">${percentage}%</span><span class="text-[10px] text-slate-400 block uppercase font-bold">do Efetivo Total</span></div>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden"><div class="bg-blue-500 h-2 rounded-full progress-bar-fill" style="width: ${percentage}%"></div></div>
+                </div>
+                <div class="bg-slate-800 text-white p-3 rounded shadow-sm flex flex-col justify-between h-20 stat-card-enter">
+                    <p class="text-[10px] uppercase font-bold opacity-70">Listados</p>
+                    <div class="flex justify-between items-end"><p class="text-2xl font-bold leading-none">${currentCount}</p><i class="fa-solid fa-filter opacity-50"></i></div>
+                </div>
+            `;
+            Object.entries(vCounts).sort((a,b)=>b[1]-a[1]).forEach(([k, c]) => {
+                html += `<div class="${getVinculoColor(k)} border p-3 rounded shadow-sm flex flex-col justify-between h-20 stat-card-enter">
+                        <p class="text-[10px] uppercase font-bold opacity-80 truncate" title="${k}">${k}</p>
+                        <div class="flex justify-between items-end"><p class="text-2xl font-bold leading-none">${c}</p><i class="fa-solid fa-users opacity-40"></i></div>
+                    </div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderTable(data) {
+            currentFilteredData = data;
+            const tbody = document.getElementById('table-body');
+            const empty = document.getElementById('empty-state');
+            const showingLbl = document.getElementById('showing-count');
+            const dbBadge = document.getElementById('db-count-badge');
+            
+            if(!tbody) return;
+            updateDynamicStats(data);
+            if(dbBadge) dbBadge.innerText = personnelData.length;
+
+            if (data.length === 0) {
+                tbody.innerHTML = '';
+                if(empty) empty.classList.remove('hidden');
+                if(showingLbl) showingLbl.innerText = 'Mostrando 0';
+                return;
+            }
+            if(empty) empty.classList.add('hidden');
+            const pageData = data.slice(0, 1000);
+            if(showingLbl) showingLbl.innerText = `Mostrando ${pageData.length}`;
+
+            tbody.innerHTML = pageData.map(p => {
+                const isLicenca = p.licenca && p.licenca.trim().length > 0;
+                const statusHtml = isLicenca ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">Afastado</span>` : `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Ativo</span>`;
+                return `<tr class="transition-colors border-b border-slate-100 last:border-0 hover:bg-blue-50 group">
+                        <td class="p-4 text-sm text-slate-700 align-top"><div class="font-bold text-luxury-900 break-words min-w-[150px]">${p.nome}</div></td>
+                        <td class="p-4 text-sm text-slate-600 align-top break-words min-w-[150px]">${p.lotacao}</td>
+                        <td class="p-4 text-slate-600 align-top"><div class="flex flex-col"><span class="font-medium break-words">${p.cargo}</span><span class="text-xs text-slate-400 break-words">${p.funcao}</span></div></td>
+                        <td class="p-4 text-sm text-slate-600 align-top whitespace-nowrap">${p.vinculo}</td>
+                        <td class="p-4 text-sm text-slate-600 align-top whitespace-nowrap">${p.turno}</td>
+                        <td class="p-4 align-top">${statusHtml}</td>
+                        <td class="p-4 text-sm text-slate-500 align-top break-words max-w-[200px]">${p.observacao ? `<i class="fa-regular fa-comment-dots text-blue-400 cursor-help" title="${p.observacao}"></i>` : ''}</td>
+                        <td class="p-4 text-center w-24 align-top">
+                            <div class="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity items-center">
+                                <button onclick="openEditModal('${p.id}')" class="p-1 hover:scale-110 transition-transform" title="Editar">
+                                    <img src="https://i.ibb.co/bMMd5SHG/pen.png" alt="Editar" class="w-5 h-5 object-contain">
+                                </button>
+                                <button onclick="confirmDelete('${p.id}')" class="p-1 hover:scale-110 transition-transform" title="Excluir">
+                                    <img src="https://i.ibb.co/VcqWYhfJ/deelte.png" alt="Excluir" class="w-5 h-5 object-contain">
+                                </button>
+                            </div>
+                        </td>
+                    </tr>`;
+            }).join('');
+        }
+
+        function showToast(msg, type) {
+            const t = document.getElementById('toast');
+            const m = document.getElementById('toast-message');
+            const i = document.getElementById('toast-icon');
+            if(!t) return;
+            m.innerText = msg;
+            t.className = `fixed bottom-6 right-6 px-6 py-4 rounded shadow-2xl transform transition-transform duration-300 z-50 flex items-center border-l-4 text-white ${type === 'error' ? 'bg-slate-800 border-red-500' : 'bg-slate-800 border-emerald-500'}`;
+            i.className = type === 'error' ? 'fa-solid fa-circle-xmark mr-3 text-red-400' : 'fa-solid fa-check mr-3 text-emerald-400';
+            t.classList.remove('translate-y-32');
+            setTimeout(() => t.classList.add('translate-y-32'), 4000);
+        }
+
+        function exportToExcel() {
+            if (typeof XLSX === 'undefined') { showToast("Erro: Lib Excel.", "error"); return; }
+            if (!currentFilteredData || currentFilteredData.length === 0) { showToast("Sem dados.", "error"); return; }
+            const exportData = currentFilteredData.map(p => ({ "Nome": p.nome, "Lotação": p.lotacao, "Cargo": p.cargo, "Função": p.funcao, "Vínculo": p.vinculo, "Turno": p.turno, "Status": (p.licenca && p.licenca.trim().length > 0) ? "Afastado" : "Ativo", "Licença Detalhe": p.licenca || "", "Observação": p.observacao }));
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            ws['!cols'] = [{wch:30}, {wch:30}, {wch:25}, {wch:25}, {wch:20}, {wch:15}, {wch:10}, {wch:20}, {wch:30}];
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Controle de Efetivo");
+            XLSX.writeFile(wb, `Efetivo_Export_${new Date().toISOString().slice(0,10)}.xlsx`);
+            showToast("Exportação Excel concluída.", "success");
+        }
+
+        function exportToPrint() {
+             if (!currentFilteredData || currentFilteredData.length === 0) { showToast("Sem dados.", "error"); return; }
+            const printWindow = window.open('', '_blank');
+            if (!printWindow) { showToast("Pop-up bloqueado.", "error"); return; }
+            const rows = currentFilteredData.map(p => `<tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 8px;">${p.nome}</td><td style="padding: 8px;">${p.lotacao}</td><td style="padding: 8px;">${p.cargo}</td><td style="padding: 8px;">${p.vinculo}</td><td style="padding: 8px;">${(p.licenca && p.licenca.trim().length > 0) ? 'Afastado' : 'Ativo'}</td></tr>`).join('');
+            const content = `<!DOCTYPE html><html><head><title>Relatório</title><style>body{font-family:'Segoe UI',sans-serif;color:#334155;padding:20px}h1{color:#0f172a;margin-bottom:5px}p{font-size:12px;color:#64748b;margin-bottom:20px}table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;background-color:#f8fafc;padding:10px;border-bottom:2px solid #cbd5e1;text-transform:uppercase}@media print{@page{margin:1cm;size:landscape}body{-webkit-print-color-adjust:exact}}</style></head><body><h1>Relatório de Controle de Efetivo</h1><p>Gerado em: ${new Date().toLocaleString()} | Total: ${currentFilteredData.length} registros</p><table><thead><tr><th>Nome</th><th>Lotação</th><th>Cargo</th><th>Vínculo</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table><script>window.onload=function(){window.print();window.close()}<\/script></body></html>`;
+            printWindow.document.write(content);
+            printWindow.document.close();
+        }
+        
+        // ... Keep existing chart functions ...
+        function updateDashboard() {
+            if (!personnelData.length) return;
+            const total = personnelData.length;
+            const licencas = personnelData.filter(p => p.licenca && p.licenca.trim()).length;
+            const locais = new Set(personnelData.map(p => p.lotacao)).size;
+            const cargos = new Set(personnelData.map(p => p.cargo)).size;
+            const animate = (id, val) => { const el = document.getElementById(id); if(el) el.innerText = val; };
+            animate('stat-total', total);
+            animate('stat-licenca', licencas);
+            animate('stat-locais', locais);
+            animate('stat-cargos', cargos);
+            if (!document.getElementById('view-dashboard').classList.contains('hidden')) renderCharts();
+        }
+
+        function renderCharts() {
+            if(typeof Chart === 'undefined') return;
+            const countBy = (key) => { const map = {}; personnelData.forEach(p => map[p[key] || 'N/A'] = (map[p[key] || 'N/A'] || 0) + 1); return Object.entries(map).sort((a,b) => b[1] - a[1]); };
+            const byUnit = countBy('lotacao');
+            const byRole = countBy('cargo');
+
+            if (charts.pie) charts.pie.destroy();
+            if (charts.bar1) charts.bar1.destroy();
+            if (charts.bar2) charts.bar2.destroy();
+
+            const top5 = byUnit.slice(0, 5);
+            const others = byUnit.slice(5).reduce((acc, c) => acc + c[1], 0);
+            if (others > 0) top5.push(['Outros', others]);
+
+            const ctxPie = document.getElementById('chart-pie');
+            if(ctxPie) {
+                charts.pie = new Chart(ctxPie, {
+                    type: 'doughnut',
+                    data: { labels: top5.map(d => d[0]), datasets: [{ data: top5.map(d => d[1]), backgroundColor: ['#3b82f6', '#0f172a', '#64748b', '#94a3b8', '#cbd5e1', '#e2e8f0'], borderWidth: 0 }] },
+                    options: { maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 10 } } } }
+                });
+            }
+
+            const ctxUnits = document.getElementById('chart-units');
+            if(ctxUnits) {
+                const top10Units = byUnit.slice(0, 10);
+                charts.bar1 = new Chart(ctxUnits, {
+                    type: 'bar',
+                    data: { labels: top10Units.map(d => d[0]), datasets: [{ label: 'Servidores', data: top10Units.map(d => d[1]), backgroundColor: '#3b82f6', borderRadius: 4 }] },
+                    options: { maintainAspectRatio: false, indexAxis: 'y', scales: { x: { display: false }, y: { grid: { display: false } } }, plugins: { legend: { display: false } } }
+                });
+            }
+
+            const ctxRoles = document.getElementById('chart-roles');
+            if(ctxRoles) {
+                const top10Roles = byRole.slice(0, 10);
+                charts.bar2 = new Chart(ctxRoles, {
+                    type: 'bar',
+                    data: { labels: top10Roles.map(d => d[0]), datasets: [{ label: 'Ocupantes', data: top10Roles.map(d => d[1]), backgroundColor: '#0f172a', borderRadius: 4 }] },
+                    options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } }
+                });
+            }
+            renderTop15Chart('TOTAL');
+        }
+
+        function renderTop15Chart(filterType) {
+            if(typeof Chart === 'undefined') return;
+            const ctx = document.getElementById('chart-top15');
+            if(!ctx) return;
+            if (charts.top15) charts.top15.destroy();
+            let filtered = personnelData;
+            if (filterType !== 'TOTAL') filtered = personnelData.filter(p => p.vinculo && p.vinculo.toUpperCase().includes(filterType));
+            const map = {};
+            filtered.forEach(p => map[p.lotacao || 'N/A'] = (map[p.lotacao || 'N/A'] || 0) + 1);
+            const top15 = Object.entries(map).sort((a,b) => b[1] - a[1]).slice(0, 15);
+            const sub = document.getElementById('top15-subtitle');
+            if(sub) sub.innerText = `Exibindo: ${filterType === 'TOTAL' ? 'Efetivo Total' : filterType}`;
+
+            charts.top15 = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: top15.map(d => d[0]), datasets: [{ label: 'Qtd', data: top15.map(d => d[1]), backgroundColor: '#2563eb', borderRadius: 4, barPercentage: 0.7 }] },
+                options: { indexAxis: 'y', maintainAspectRatio: false, scales: { x: { beginAtZero: true, grid: { color: '#f1f5f9' } }, y: { grid: { display: false }, ticks: { font: { size: 11, family: "'Segoe UI', sans-serif" } } } }, plugins: { legend: { display: false } } }
+            });
+        }
+    </script>
+</body>
+</html>
